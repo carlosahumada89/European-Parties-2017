@@ -1,1 +1,3 @@
-# European-Parties-2017
+# European Parties Positions in 2017
+
+Since 1999 researchers from The University of North Carolina estimate party positions on European integration, ideology and policy issues for national parties in a variety of European countries through experts surveys. For this project, I am going to use the most recent one, the 2017 Chapel Hill Expert FLASH Survey (CHES). According to its website, this is a reduced survey that focuses on a smaller set of EU member states. The survey asks all the standard questions on EU placement, economic and social party positioning. In terms of policy issues, the survey focuses on the key questions facing Europe in 2017 – EU economic coordination, populism, and migration. Instead of using the individual answers from experts, I am going to take the dataset that contains the mean results for each party.
