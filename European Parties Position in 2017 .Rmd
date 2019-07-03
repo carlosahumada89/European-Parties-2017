@@ -1,0 +1,313 @@
+---
+title: "European Parties Positions in 2017"
+subtitle: "Midterm Project"
+author: "Carlos Ahumada"
+date: "March 19, 2019"
+output:
+  html_notebook:
+    toc: true 
+    toc_depth: 3  
+    theme: united  
+    highlight: tango  
+---
+
+<br>
+Since 1999 researchers from The University of North Carolina estimate party positions on European integration, ideology and policy issues for national parties in a variety of European countries through experts surveys. For this project, I am going to use the most recent one, the 2017 Chapel Hill Expert FLASH Survey (CHES). According to its [website](https://www.chesdata.eu/1999-2014-chapel-hill-expert-survey-ches-trend-file-1), this is a reduced survey that focuses on a smaller set of EU member states. The survey asks all the standard questions on EU placement, economic and social party positioning. In terms of policy issues, the survey focuses on the key questions facing Europe in 2017 -- EU economic coordination, populism, and migration. Instead of using the individual answers from experts, I am going to take the dataset that contains the mean results for each party. 
+
+#Data preparation
+
+<br>
+```{r}
+#Packages list
+library(data.table)
+library(pastecs)
+library (GGally)
+library (dplyr)
+library (magrittr)
+library (Hmisc)
+library (corrplot)
+library(ggrepel)
+```
+
+```{r}
+#Read Dataset using UTF-8 encoding
+eu <- read.csv("C:/Users/carlo/Desktop/Applied Machine Learning/Midterm - EU/EU.csv", encoding="UTF-8")
+str(eu)
+```
+
+While many variables are self-explanatory, it is important to clarify some of them. For more information, please visit the [codebook](https://static1.squarespace.com/static/5975c9bfdb29d6a05c65209b/t/5abd3f57758d460daa65c360/1522351961283/CHES+2017+Codebook.pdf): <br>
+
+*vote* = vote percentage received by the party in the national election most prior to 2017.
+*seat* = seat share of the party in the national elections most prior to 2017.
+*electionyear* = year for national election most prior to 2017, used to calculate vote and seat.
+*lrgen* = position of the party in terms of its overall ideological stance. (0 extreme left - 10 extreme right)<br>
+*lrgenecon* =  position of the party in terms of its ideological stance on economic issues. (0 extreme left - 10 extreme right)<br>
+*lrecon_clear* = clarity of a party’s position on economic issues.(0 not clear at all - 10 completely clear). <br>
+*lrecon_salience* = relative salience of economic issues in the party’s public stance in *year* (0 No importance - 10 great importance). <br> 
+
+Similar scales and definitions apply to subsequent variables. *galtan* variables refer to (0 Green/Alternative/Libertarian (GAL) - 10 Traditional/Authoritatian/Nationalist (TAN)). The difference between *galtan* and *galtan_new* variables is that the former refers to the position of the party in terms of their views on democratic freedoms and rights, while the latter to the position of the party in terms of a cultural dimension.  
+
+
+##Data cleaining
+
+```{r}
+##remove null columns
+eu <- eu [ ,colSums(is.na(eu))<nrow(eu)]
+
+#remove NA's
+eu <- eu [complete.cases(eu), ]
+
+```
+
+#Descriptive Statistics 
+
+```{r}
+descriptive <- stat.desc(eu[ , -(c(1:5,8:9))])
+round(descriptive, 2)
+```
+
+
+#Data Exploration 
+<br>
+
+```{r}
+#Scatterplot matrix for some variables of interest 
+ggpairs(data=eu, # data.frame with variables (omitting party id, party name,and experts)
+        columns=c(6,7,11,12,17,20,23,33), # columns to plot, default to all
+        title="Scatterplot EU-Party Data") # title of the plot
+```
+
+```{r}
+#correlation plot for all variables of interest
+complete_corr <- cor(eu [ , c(6,7,11,12,17,20,23,33)])
+corrplot(complete_corr, order="AOE", method="color", addCoef.col = "grey")
+```
+
+
+
+Immigration positions is measured in the following scale: <br>
+0 Fully opposed to a restrictive policy on immigration - 10 Fully in favour of a restrictive policy on immigration. 
+
+With this information and the general scatterplot, we can see that there is a positive correlation between being a more traditional/authoritarian/nationalist (TAN) party than a green/authoritarian/libertarian one and supporting a restrictive policy on immigration. A similar situation is happening with parties that are identified as more right in economic terms and restrictive policy immigration. However, this last correlation is not as strong as the first one. This might be an indication that there are parties that even though they are regarded as left in economic terms, they are also in favor of restricting immigration. As a first conclusion of the explanatory analysis, it can be said that restrictive immigration policies appear to be a general trend among European parties. This can be corroborated by looking at the positive correlation between *vote* and *immigration_policy* <br> 
+
+One limitation of this kind of general scatterplots is that we might be losing some information when we look at compiled data. Can we see different behaviors between countries? Let's take a closer look at the correlations between *vote*, *lrecon*, *galtan*, and *immigration_policy*. 
+
+
+```{r}
+#Scatterplot matrix for some variables of interest 
+eu %>% filter (country=="ger" | country=="esp" | country=="swe" | country =="it") %>%
+  select(vote, lrecon, galtan, immigrate_policy, country) %>% 
+  ggpairs(ggplot2::aes(colour=country))
+```
+In this new scatterplot grouped by countries, a difference between them can be perceived. The first two countries to be compared are Spain and Germany. These two countries were chosen as two different cases in terms of their position towards the EU. On one hand, Spain is a country that has benefited a lot from the EU, particularly in the context of its economic crisis. On the other hand, Germany, athough it has been one of the key players in keeping the EU working, it has also been a strong voice against some meassures taken at the EU level. Although we see that in average German parties are more in favor of a strong restriction to immigration than parties in Spain, actually having a strong position towards immigration has a higher effect in vote shares in Spain than in Germany. In the German case, being in favor of stronger restrictions has a small but negative effect on the votes obtained. 
+
+The second two countries to compare are Italy and Sweden. These two countries were chosen because Italy, by being in the southern border of the EU has to deal in a more direct way with immigration issues than countries in the north like Sweden. In average, parties in both countries have a similar position regarding immigration policies. However, in Sweden, the variance is higher, which indicates that there are parties there that are more in favor of lower restrictions to immigration than in Italy. Abnother important thing to highlight is that Sweden reports the weakest correlation coefficient from all countries in the effect of being left or right in terms of economic position and immigration policy. This means that in Sweden a right party in economic policy terms, is not necessarily linked to strong positions regarding immigration. 
+
+Notice that these correlations coefficients are only based in linear regressions. For some cases, an exponential regression might fit the data better, producing better results. 
+
+
+##Correlation coefficients and p-values 
+
+An important thing to measure is, whether the effects we see are statistically significant or not. For that, an exploration of the p-values is needed. 
+
+```{r}
+res <- rcorr(as.matrix(eu[ , c(6,7,11,12,17,20,23,33)]))
+
+Matrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor  =(cormat)[ut],
+    p = pmat[ut]
+    )
+}
+options("scipen"=100, "digits"=4)
+significance <- Matrix(res$r, res$P)
+significance[order(-significance$p),] 
+```
+
+This table with the correlations between the variables and their p-values shows that the effect of immigration policy with the share of votes, the position towards the EU, the left-right economic policy position and GALTAN are all statistically significant. Below, I present a visualization of it. 
+
+```{r}
+# If a correlation is insignificant, blank space
+corrplot(res$r, type="upper", order="hclust", 
+         p.mat = res$P, sig.level = 0.05, insig = "blank")
+```
+
+#Boxplots
+
+The visualizations below show the differences among countries and political families across some variables of interest. The variance betweet them is also shown. 
+
+```{r}
+#getting rid of numbers and period in family name
+eu$family <- (gsub("[[:digit:]]+.", "", eu$family))
+
+####creating boxplot 
+
+#function to identify outliers
+is_outlier <- function(x) {
+  return(x < quantile(x, 0.25) - 1.5 * IQR(x) | x > quantile(x, 0.75) + 1.5 * IQR(x))
+}
+
+#plotting EU Positions - Political Party Family
+eu %>% 
+  group_by(family) %>%
+  mutate(outlier=ifelse(is_outlier(position),party,as.numeric(NA))) %>%
+  ggplot(aes(x=family, position, fill = family)) + 
+    geom_boxplot(outlier.colour = NA) +
+  ggtitle('Positions towards the EU by political family') +
+  xlab('Political Family') +
+  ylab('EU position') +
+   geom_text (data=. %>% filter(!is.na(outlier)), aes(label=party)) +
+  theme(panel.grid.major = element_line(size = .5, color = "grey"),
+        axis.text.x = element_text(angle=45, hjust=1),
+          axis.title = element_text(size = rel(.8)),
+          axis.text = element_text(size = rel(.9)))
+```
+
+The first boxplot shows that in average, liberal, socialists, agrarian/center, green and regionalist parties have a strong and positive position towards the EU. However, it is important to mention that among this group of pro-EU parties, green parties seem to have larger differences between them on their support levels. On the other side, radical TAN parties, radical left and confessional parties tend to be more anti-EU. Another thing we can notice from this boxplot is the presence of important outliers. There are two liberal (Partido Democrático Republicano (Portugal), Sloboda a Solidarita (Slovakia)), two regionalist (Democratic Unionist Party (UK), Lega Nord(Italy)) and one socialist party (Labour Party (UK)) hat are considerably more anti-EU than the rest of the parties in their political family. 
+
+
+```{r}
+#plotting Immigration Policy - Political Party Family
+
+eu %>% 
+  group_by(family) %>%
+  mutate(outlier=ifelse(is_outlier(immigrate_policy),party,as.numeric(NA))) %>%
+  ggplot(aes(x=family, immigrate_policy, fill = family)) + 
+    geom_boxplot(outlier.colour = NA) +
+  ggtitle('Positions towards Immigration Policy by political family') +
+  xlab('Political Family') +
+  ylab('Immigration Policy Position') +
+   geom_text (data=. %>% filter(!is.na(outlier)), aes(label=party)) +
+  theme(panel.grid.major = element_line(size = .5, color = "grey"),
+        axis.text.x = element_text(angle=45, hjust=1),
+          axis.title = element_text(size = rel(.8)),
+          axis.text = element_text(size = rel(.9)))
+```
+
+This plot shows that conservative and radical TAN parties are the ones that score higher in their position supporting tougher restrictions for immigration. On the other hand greens and radical left parties, are more pro-immigration. Both groups appear to have relatively low variance among the political parties of their respective families. Again, some outliers appear. In the case of the radical left, the Komunistická strana Čech a Moravy of Czech Republic is classified as a radical left party, but has a strong position against immigration. A similar situation is happening with sociálna demokraci from Slovakia, a socialist party with strong position against immigration. 
+
+Now, the same analysis of the position towards the EU and Immigration is made but grouped by countries. 
+
+```{r}
+eu %>% 
+  group_by(country) %>%
+  mutate(outlier=ifelse(is_outlier(position),party,as.numeric(NA))) %>%
+  ggplot(aes(x=country, position, fill = country)) + 
+    geom_boxplot(outlier.colour = NA) +
+  ggtitle('Positions towards the EU by political country') +
+  xlab('Country') +
+  ylab('EU position') +
+   geom_text (data=. %>% filter(!is.na(outlier)), aes(label=party)) +
+  theme(panel.grid.major = element_line(size = .5, color = "grey"),
+        axis.text.x = element_text(angle=45, hjust=1),
+          axis.title = element_text(size = rel(.8)),
+          axis.text = element_text(size = rel(.9)))
+```
+
+Although this boxplots are less revealing because a larger spectrum of positions is expected to be represented in the different political parties inside a country, they does contain information. For example, in Spain, Estonia and Hungary, almost all the parties have a pro-EU position. However in Estonia and Hungary there are two important outliers EKRE and Fidesz. Moreover, the large spectrum covered by political parties in France, Italy and the UK might be an indication of the public opinion division on this topic. This also reflects why leaders in those countrues are struggling to create agreements, pass reforms, and others. 
+
+
+
+
+```{r}
+#plotting Immigration Policy - Country
+
+eu %>% 
+  group_by(country) %>%
+  mutate(outlier=ifelse(is_outlier(immigrate_policy),party,as.numeric(NA))) %>%
+  ggplot(aes(x=country, immigrate_policy, fill = country)) + 
+    geom_boxplot(outlier.colour = NA) +
+  ggtitle('Positions towards Immigration Policy by country') +
+  xlab('Country') +
+  ylab('Immigration Policy Position') +
+   geom_text (data=. %>% filter(!is.na(outlier)), aes(label=party)) +
+  theme(panel.grid.major = element_line(size = .5, color = "grey"),
+        axis.text.x = element_text(angle=45, hjust=1),
+          axis.title = element_text(size = rel(.8)),
+          axis.text = element_text(size = rel(.9)))
+```
+
+In this graph it can be seen that in contrast to what is happening in Slovakia, political parties, in general, are not looking for tougher immigration policies. Furthermore, some parties with strong positions in favour of immigration can be identified in Spain, France and Sweden. 
+
+
+Now let's explore the relationship between being part of the government or not and the position towards the EU and Immigration policy. It is important to keep in mind that the no assumption about the direction is being made. In other words, it might be the case that being part of the government affects your position towards these topics,but also your position on these topics might have an effect on whether the party was part of the government or not.  
+
+```{r}
+#Create new variable to distinguish whether parties were part of the governmetn in 2017 or not, irrespectively of their duration
+
+eu$govt <- ifelse(eu$govt==0 , "not in government", eu$govt)
+eu$govt <- ifelse (eu$govt==0.5, "In government for part of 2017", eu$govt)
+eu$govt <- ifelse (eu$govt==1, "In government in 2017", eu$govt)
+
+eu %>% 
+  group_by(govt) %>%
+  mutate(outlier=ifelse(is_outlier(position),party,as.numeric(NA))) %>%
+  ggplot(aes(x=govt, position, fill = govt)) +  
+    geom_boxplot(outlier.colour = NA) +
+  ggtitle('Position towards EU by government participation in 2017') +
+  xlab('Goverment participation') +
+  ylab('Position EU') +
+   geom_text (data=. %>% filter(!is.na(outlier)), aes(label=party)) +
+  theme(panel.grid.major = element_line(size = .5, color = "grey"),
+        axis.text.x = element_blank(),
+          axis.title = element_text(size = rel(.8)),
+          axis.text = element_text(size = rel(.9)))
+```
+
+This plot shows that parties that were part of the government in 2017 in their countries had on average more positive positions towards the EU than those which did not. It is worth noticing that the CU and PiS are two outliers for the parties that were in government just for a part of 2017. Also, there is a more general difference between being part of the government the full year and being part of the government just for a part of 2017. The position of those parties that remain in power through 2017 are more dispersed. This is an indication of ruling parties that were having stands against the EU through their mandate. In general, it can be said that parties in the opposition were on average more anti-EU than ruling parties. 
+
+Now lets do a similar analysis but for Immigration positions. 
+
+```{r}
+eu %>% 
+  group_by(govt) %>%
+  mutate(outlier=ifelse(is_outlier(immigrate_policy),party,as.numeric(NA))) %>%
+  ggplot(aes(x=govt, immigrate_policy, fill = govt)) +  
+    geom_boxplot(outlier.colour = NA) +
+  ggtitle('Position towards Immigration by government participation in 2017') +
+  xlab('Goverment participation') +
+  ylab('Position Immigration') +
+   geom_text (data=. %>% filter(!is.na(outlier)), aes(label=party)) +
+  theme(panel.grid.major = element_line(size = .5, color = "grey"),
+        axis.text.x = element_blank(),
+          axis.title = element_text(size = rel(.8)),
+          axis.text = element_text(size = rel(.9)))
+```
+
+
+In this plot it can be seen that in average, parties that were part of the government in 2017 were more in favor of strengthening the restrictions on immigration than those parties that were not. This might be an indication of both the public pressure that ruling parties have on this topic and that parties that had a stronger position against immigration were more elected than those with weaker positions. 
+
+#Relationship between vote and positions by country
+
+```{r}
+#subsetting dataframe for parties that obtained above 10% of votes
+eu_vote <- eu [eu$vote >=10, ]
+p <- ggplot(data = eu_vote, aes(x = lrgen, y = immigrate_policy, color = vote)) + geom_point(aes(size = vote))+ 
+   geom_text_repel(aes(label = party))
+p + facet_wrap(~country)
+```
+
+With these kind of plots, important difference among countres can be seen. For example, in the UK the two parties with more votes were at opposite sides from the left right scale, and also different positions regarding immigration. The left party had a less restrictive position, while the right party a stronger one. Germany presents a very similar case than the UK. In the case of Slovakia, people tend to look for left parties, but public opinion might be very inclined to strengthen the restrictions for migrants. In Portugal, people voters seem to be less radical in terms of left and right positions, and seem to have a common opinion not strenghtening meassures to migrants. 
+
+
+```{r}
+#subsetting dataframe for parties that obtained above 10% of votes
+p <- ggplot(data = eu_vote, aes(x = lrgen, y = position, color = vote)) + geom_point(aes(size = vote)) + 
+   geom_text_repel(aes(label = party))
+p + facet_wrap(~country)
+```
+
+Finally, in this plot it can be seen, for example, that poland's citizens are divided between pro-EU and anti-EU, with a higher share for Pro-EU and right parties. In italy, the vot was splitted between three parties that clustered in a not-so-radical left right position, but that differed substantially on their opinion towards the EU. 
+
+#Conclusion
+The analysis presented above shows that the image that political parties projected, at least for the experts who responded to this survey, was one of being more Pro-Europe in general but more anti-migration. Also, it shows that despite general trends,it is important to look at domestic dynamics, since they differ substantially. The reasons might be many: geographic location, budgetary situation, divison of the public opinion, and others. This dataset seems to be a good approximation to the real scenario in 2017. However, it is important to notice that since it is a sruvey answered by experts, the interpretation of the scales, personal perceptions on political parties and expertise on foreign countries might be playing a important role. 
+
+#Bibliography 
+Polk, Jonathan, Jan Rovny, Ryan Bakker, Erica Edwards, Liesbet Hooghe, Seth Jolly, Jelle Koedam, Filip Kostelka, Gary Marks, Gijs Schumacher, Marco Steenbergen, Milada Vachudova and Marko Zilovic. 2017. "Explaining the salience of anti-elitism and reducing political corruption for political parties in Europe with the 2014 Chapel Hill Expert Survey data," Research & Politics (January-March): 1-9.
+
+
+
+
